@@ -1,0 +1,3 @@
+/home/wangyi/ClionProjects/mongoc++driveV3_test/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/wangyi/ClionProjects/mongoc++driveV3_test/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/wangyi/ClionProjects/mongoc++driveV3_test/cmake-build-debug/CMakeFiles/mongoc__driveV3_test.dir

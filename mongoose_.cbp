@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6"/>
+	<Project>
+		<Option title="mongoose_"/>
+		<Option makefile_is_custom="1"/>
+		<Option compiler="gcc"/>
+		<Option virtualFolders="CMake Files\;"/>
+		<Build>
+			<Target title="all">
+				<Option working_dir="/home/jame/share_user/git_mongoose"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 all"/>
+					<CompileFile command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/jame/share_user/git_mongoose"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/jame/share_user/git_mongoose"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pthread">
+				<Option output="/home/jame/share_user/git_mongoose/pthread" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/jame/share_user/git_mongoose"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/jame/share_user/git_mongoose/./easylogger/include"/>
+					<Add directory="/home/jame/share_user/git_mongoose/./include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 pthread"/>
+					<CompileFile command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="pthread/fast">
+				<Option output="/home/jame/share_user/git_mongoose/pthread" prefix_auto="0" extension_auto="0"/>
+				<Option working_dir="/home/jame/share_user/git_mongoose"/>
+				<Option object_output="./"/>
+				<Option type="1"/>
+				<Option compiler="gcc"/>
+				<Compiler>
+					<Add directory="/home/jame/share_user/git_mongoose/./easylogger/include"/>
+					<Add directory="/home/jame/share_user/git_mongoose/./include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
+					<Add directory="/usr/local/include"/>
+					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
+					<Add directory="/usr/include/x86_64-linux-gnu"/>
+					<Add directory="/usr/include"/>
+					<Add directory="/usr/include/c++/5"/>
+					<Add directory="/usr/include/x86_64-linux-gnu/c++/5"/>
+					<Add directory="/usr/include/c++/5/backward"/>
+				</Compiler>
+				<MakeCommands>
+					<Build command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 pthread/fast"/>
+					<CompileFile command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/usr/bin/make -j2 -f &quot;/home/jame/share_user/git_mongoose/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog.c">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog_port.c">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog_utils.c">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/log.cpp">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/main.cpp">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/src/dump_core.cpp">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/src/pthread_template.cpp">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/src/time_operate.cpp">
+			<Option target="pthread"/>
+		</Unit>
+		<Unit filename="/home/jame/share_user/git_mongoose/CMakeLists.txt">
+			<Option virtualFolder="CMake Files\"/>
+		</Unit>
+	</Project>
+</CodeBlocks_project_file>
