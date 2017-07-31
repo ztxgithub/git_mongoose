@@ -3737,6 +3737,7 @@ int mg_socketpair(sock_t sp[2], int sock_type) {
     sa.sin.sin_port = htons(0);
     sa.sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
 
+
     if ((sock = socket(AF_INET, sock_type, 0)) == INVALID_SOCKET) {
     } else if (bind(sock, &sa.sa, len) != 0) {
     } else if (sock_type == SOCK_STREAM && listen(sock, 1) != 0) {
