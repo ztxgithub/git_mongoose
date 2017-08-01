@@ -80,8 +80,8 @@
  ``` c
   
      MG_EV_ACCEPT：当accept到一个新的连接请求时触发该事件，void *ev_data is union socket_address of the remote peer.
-     MG_EV_CONNECT：当使用mg_connect() 创建连接套接字时触发该事件，
-                    ev_data 为int *success，success为0表示成功，否则为失败的errno
+     MG_EV_CONNECT：当使用mg_connect() 创建连接套接字时触发该事件，ev_data 为int *success，success为0表示成功，
+                    否则为失败的errno
      MG_EV_RECV：接收到新的数据，void *ev_data is int *num_received_bytes. 是接收到的字节数，
                 接收到应该使用recv_mbuf来获取数据，但是需要由用户删除已接收的数据——比如mbuf_remove()。
                 使用mg_send()发送数据。Mongoose 使用realloc来扩展接收缓冲区，
