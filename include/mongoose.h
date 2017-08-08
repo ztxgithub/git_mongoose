@@ -3002,7 +3002,7 @@ struct mg_iface_vtable;
 struct mg_iface {
     struct mg_mgr *mgr;
     void *data; /* Implementation-specific data */
-    struct mg_iface_vtable *vtable;
+    struct mg_iface_vtable *vtable;  //mg_iface_vector_table(矢量表)
 };
 
 struct mg_iface_vtable {
@@ -3249,7 +3249,7 @@ struct mg_mgr {
     const char *hexdump_file; /* Debug hexdump file path */
 #endif
 #if MG_ENABLE_BROADCAST
-    sock_t ctl[2]; /* Socketpair for mg_broadcast() */
+    sock_t ctl[2]; /* Socketpair for mg_broadcast() sock[0] 作为客户端的sock, sock[1]作为服务端的sock*/
 #endif
     void *user_data; /* User data */
     int num_ifaces;
@@ -3267,7 +3267,7 @@ struct mg_connection {
     struct mg_connection *listener;    /* Set only for accept()-ed connections */
     struct mg_mgr *mgr;                /* Pointer to containing manager */
 
-    sock_t sock; /* Socket to the remote peer */
+    sock_t sock; /* Socket to the remote peer  设置为非阻塞*/
     int err;
     union socket_address sa; /* Remote peer address */
     size_t recv_mbuf_limit;  /* Max size of recv buffer */

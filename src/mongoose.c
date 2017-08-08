@@ -1999,7 +1999,9 @@ void mg_tun_destroy_client(struct mg_tun_client *client);
 #ifndef intptr_t
 #define intptr_t long
 #endif
-
+/*对nc进行操作
+ *
+ * */
 MG_INTERNAL void mg_add_conn(struct mg_mgr *mgr, struct mg_connection *c) {
     DBG(("%p %p", mgr, c));
     c->mgr = mgr;
@@ -2008,7 +2010,7 @@ MG_INTERNAL void mg_add_conn(struct mg_mgr *mgr, struct mg_connection *c) {
     c->prev = NULL;
     if (c->next != NULL) c->next->prev = c;
     if (c->sock != INVALID_SOCKET) {
-        c->iface->vtable->add_conn(c);
+        c->iface->vtable->add_conn(c);  //mg_socket_if_add_conn
     }
 }
 
@@ -2020,6 +2022,9 @@ MG_INTERNAL void mg_remove_conn(struct mg_connection *conn) {
     conn->iface->vtable->remove_conn(conn);
 }
 
+/*mongoose 事件处理函数入口
+ * nc->mgr->hexdump_file != NULL 将收到的数据保存到 hexdump_file文件中
+ * */
 MG_INTERNAL void mg_call(struct mg_connection *nc,
                          mg_event_handler_t ev_handler, int ev, void *ev_data) {
     if (ev_handler == NULL) {
@@ -2051,15 +2056,17 @@ MG_INTERNAL void mg_call(struct mg_connection *nc,
     if (ev_handler != NULL) {
         unsigned long flags_before = nc->flags;
         size_t recv_mbuf_before = nc->recv_mbuf.len, recved;
-        ev_handler(nc, ev, ev_data);
+        ev_handler(nc, ev, ev_data);  //用户自定义的ev_handler回调函数可以改变nc->flags
         recved = (recv_mbuf_before - nc->recv_mbuf.len);
         /* Prevent user handler from fiddling with system flags. */
         if (ev_handler == nc->handler && nc->flags != flags_before) {
+
+            //用户只能修改nc->flags中用户能修改的flag,修改MG_F_UDP没有用,会过滤的
             nc->flags = (flags_before & ~_MG_CALLBACK_MODIFIABLE_FLAGS_MASK) |
                         (nc->flags & _MG_CALLBACK_MODIFIABLE_FLAGS_MASK);
         }
-        if (recved > 0 && !(nc->flags & MG_F_UDP)) {
-            nc->iface->vtable->recved(nc, recved);
+        if (recved > 0 && !(nc->flags & MG_F_UDP)) {  //tcp连接
+            nc->iface->vtable->recved(nc, recved);  //mg_socket_if_recved
         }
     }
     if (ev != MG_EV_POLL) {
@@ -2090,7 +2097,7 @@ void mg_if_poll(struct mg_connection *nc, time_t now) {
 }
 
 static void mg_destroy_conn(struct mg_connection *conn, int destroy_if) {
-    if (destroy_if) conn->iface->vtable->destroy_conn(conn);
+    if (destroy_if) conn->iface->vtable->destroy_conn(conn);  //mg_socket_if_destroy_conn
     if (conn->proto_data != NULL && conn->proto_data_destructor != NULL) {
         conn->proto_data_destructor(conn->proto_data);
     }
@@ -2114,6 +2121,7 @@ void mg_close_conn(struct mg_connection *conn) {
 
 /**
  * \brief 使用默认的 struct mg_mgr_init_opts
+ *         初始化struct mg_mgr各个参数
  */
 void mg_mgr_init(struct mg_mgr *m, void *user_data) {
     struct mg_mgr_init_opts opts;
@@ -2124,9 +2132,14 @@ void mg_mgr_init(struct mg_mgr *m, void *user_data) {
 /**
  * \brief 初始化　struct mg_mgr *mgr
  *
- * 1.sock_t ctl[2] 都置为 INVALID_SOCKET
+ *
  * 2.struct mg_mgr::user_data 进行赋值
- * 3.将opts.main_iface 赋值给  opts.ifaces[0]
+ * 3.如果struct mg_mgr_init_opts opts传入参数内容为0,
+ * If `num_ifaces` is 0 and `ifaces` is NULL, the default interface set will used.
+ * opts.main_iface 赋值给  opts.ifaces[0]
+ * 4.初始化 struct mg_mgr->num_ifaces; mg_mgr->ifaces 根据opts的相关内容
+ *
+ * bug:如果opts没有初始化是没有问题, 但opts 如果是自己赋值的,则要保证opts.num_ifaces >= mg_num_ifaces
  */
 void mg_mgr_init_opt(struct mg_mgr *m, void *user_data,
                      struct mg_mgr_init_opts opts) {
@@ -2244,7 +2257,7 @@ time_t mg_mgr_poll(struct mg_mgr *m, int timeout_ms) {
     }
 
     for (i = 0; i < m->num_ifaces; i++) {
-        now = m->ifaces[i]->vtable->poll(m->ifaces[i], timeout_ms);
+        now = m->ifaces[i]->vtable->poll(m->ifaces[i], timeout_ms);  //mg_socket_if_poll
     }
     return now;
 }
@@ -2310,6 +2323,8 @@ int mg_resolve(const char *host, char *buf, size_t n) {
 }
 #endif /* MG_ENABLE_SYNC_RESOLVER */
 
+/*初始化conn->sock, conn->handler, conn->mgr, conn->last_io_time, conn->iface
+ *conn->flags  conn->user_data  conn->recv_mbuf_limit*/
 MG_INTERNAL struct mg_connection *mg_create_connection_base(
     struct mg_mgr *mgr, mg_event_handler_t callback,
     struct mg_add_sock_opts opts) {
@@ -2344,7 +2359,7 @@ MG_INTERNAL struct mg_connection *mg_create_connection(
     struct mg_add_sock_opts opts) {
     struct mg_connection *conn = mg_create_connection_base(mgr, callback, opts);
 
-    if (conn != NULL && !conn->iface->vtable->create_conn(conn)) {
+    if (conn != NULL && !conn->iface->vtable->create_conn(conn)) {  //mg_socket_if_create_conn
         MG_FREE(conn);
         conn = NULL;
     }
@@ -2357,6 +2372,8 @@ MG_INTERNAL struct mg_connection *mg_create_connection(
 
 /*
  * Address format: [PROTO://][HOST]:PORT
+ *                 PROTO:(udp|tcp)
+ *                 HOST:(192.168.0.2) 或则从/etc/hosts 中能解析的域名
  *
  * HOST could be IPv4/IPv6 address or a host name.
  * `host` is a destination buffer to hold parsed HOST part. Shoud be at least
@@ -2602,6 +2619,7 @@ MG_INTERNAL struct mg_connection *mg_do_connect(struct mg_connection *nc,
     return nc;
 }
 
+/*mongoose 作为客户端进行连接*/
 void mg_if_connect_cb(struct mg_connection *nc, int err) {
     DBG(("%p connect, err=%d", nc, err));
     nc->flags &= ~MG_F_CONNECTING;
@@ -2766,7 +2784,11 @@ struct mg_connection *mg_bind(struct mg_mgr *srv, const char *address,
     memset(&opts, 0, sizeof(opts));
     return mg_bind_opt(srv, address, event_handler, opts);
 }
-
+/* 解析address 取得union socket_address
+ * 初始化 struct mg_connection 数据结构
+ *  nc->flags |= MG_F_LISTENING
+ *  设置是UDP还是TCP
+ * */
 struct mg_connection *mg_bind_opt(struct mg_mgr *mgr, const char *address,
                                   mg_event_handler_t callback,
                                   struct mg_bind_opts opts) {
@@ -2795,9 +2817,9 @@ struct mg_connection *mg_bind_opt(struct mg_mgr *mgr, const char *address,
         return NULL;
     }
 
-    nc->sa = sa;
-    nc->flags |= MG_F_LISTENING;
-    if (proto == SOCK_DGRAM) nc->flags |= MG_F_UDP;
+    nc->sa = sa;  //定义为服务端绑定的地址
+    nc->flags |= MG_F_LISTENING;  //将该nc的flags 定义为 listen
+    if (proto == SOCK_DGRAM) nc->flags |= MG_F_UDP;  //默认是TCP
 
 #if MG_ENABLE_SSL
     DBG(("%p %s %s,%s,%s", nc, address, (opts.ssl_cert ? opts.ssl_cert : "-"),
@@ -2827,9 +2849,9 @@ struct mg_connection *mg_bind_opt(struct mg_mgr *mgr, const char *address,
 #endif /* MG_ENABLE_SSL */
 
     if (nc->flags & MG_F_UDP) {
-        rc = nc->iface->vtable->listen_udp(nc, &nc->sa);
+        rc = nc->iface->vtable->listen_udp(nc, &nc->sa);  //mg_socket_if_listen_udp
     } else {
-        rc = nc->iface->vtable->listen_tcp(nc, &nc->sa);
+        rc = nc->iface->vtable->listen_tcp(nc, &nc->sa);  //mg_socket_if_listen_tcp
     }
     if (rc != 0) {
         DBG(("Failed to open listener: %d", rc));
@@ -2837,6 +2859,7 @@ struct mg_connection *mg_bind_opt(struct mg_mgr *mgr, const char *address,
         mg_destroy_conn(nc, 1 /* destroy_if */);
         return NULL;
     }
+    printf("bind_listen_nc[%d]\n", nc->sock);
     mg_add_conn(nc->mgr, nc);
 
     return nc;
@@ -2937,16 +2960,17 @@ double mg_set_timer(struct mg_connection *c, double timestamp) {
     }
     return result;
 }
-
+/*将sock设置为非阻塞形式
+ * nc->sock=sock*/
 void mg_sock_set(struct mg_connection *nc, sock_t sock) {
     if (sock != INVALID_SOCKET) {
-        nc->iface->vtable->sock_set(nc, sock);
+        nc->iface->vtable->sock_set(nc, sock);  //mg_socket_if_sock_set
     }
 }
 
 void mg_if_get_conn_addr(struct mg_connection *nc, int remote,
                          union socket_address *sa) {
-    nc->iface->vtable->get_conn_addr(nc, remote, sa);
+    nc->iface->vtable->get_conn_addr(nc, remote, sa);  //mg_socket_if_get_conn_addr
 }
 
 struct mg_connection *mg_add_sock_opt(struct mg_mgr *s, sock_t sock,
@@ -3240,7 +3264,10 @@ static int mg_accept_conn(struct mg_connection *lc) {
     return 1;
 }
 
-/* 'sa' must be an initialized address to bind to */
+/* 'sa' must be an initialized address to bind to
+ *  根据 socket_address , socket_type ,进行socket(),bind(),listen() 产生对应的socket
+ *  并且设置该socket为非阻塞状态
+ * */
 static sock_t mg_open_listening_socket(union socket_address *sa, int type,
                                        int proto) {
     socklen_t sa_len =
@@ -3471,6 +3498,8 @@ void mg_mgr_handle_conn(struct mg_connection *nc, int fd_flags, double now) {
     }
 
     if (nc->flags & MG_F_CONNECTING) {
+
+        printf("mg_mgr_handle_conn nc->flags include MG_F_CONNECTING\n");
         if (fd_flags != 0) {
             int err = 0;
 #if !defined(MG_ESP8266)
@@ -3504,10 +3533,11 @@ void mg_mgr_handle_conn(struct mg_connection *nc, int fd_flags, double now) {
         }
     }
 
+    //sock recv
     if (fd_flags & _MG_F_FD_CAN_READ) {
-        if (nc->flags & MG_F_UDP) {
+        if (nc->flags & MG_F_UDP) {  //udp
             mg_handle_udp_read(nc);
-        } else {
+        } else {  //tcp
             if (nc->flags & MG_F_LISTENING) {
                 /*
                  * We're not looping here, and accepting just one connection at
@@ -3559,7 +3589,7 @@ void mg_socket_if_sock_set(struct mg_connection *nc, sock_t sock) {
     nc->sock = sock;
     DBG(("%p %d", nc, sock));
 }
-
+/*一直死循环直到iface->mgr->ctl sock有效*/
 void mg_socket_if_init(struct mg_iface *iface) {
     (void) iface;
     DBG(("%p using select()", iface->mgr));
@@ -3653,6 +3683,7 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
             }
         }
 
+        //对每一个nc进行ev_timer判断
         if (nc->ev_timer_time > 0) {
             if (num_timers == 0 || nc->ev_timer_time < min_timer) {
                 min_timer = nc->ev_timer_time;
@@ -3686,12 +3717,15 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
 #if MG_ENABLE_BROADCAST
     if (num_ev > 0 && mgr->ctl[1] != INVALID_SOCKET &&
             FD_ISSET(mgr->ctl[1], &read_set)) {
+
+        printf("mgr->ctl[1] read data detect\n");
         mg_mgr_handle_ctl_sock(mgr);
     }
 #endif
-
     for (nc = mgr->active_connections; nc != NULL; nc = tmp) {
         int fd_flags = 0;
+        int cnt_nc = 0;
+        printf("cnt_nc[%d]\n", ++cnt_nc);
         if (nc->sock != INVALID_SOCKET) {
             if (num_ev > 0) {
                 fd_flags = (FD_ISSET(nc->sock, &read_set) &&
@@ -3700,6 +3734,8 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
                             : 0) |
                            (FD_ISSET(nc->sock, &write_set) ? _MG_F_FD_CAN_WRITE : 0) |
                            (FD_ISSET(nc->sock, &err_set) ? _MG_F_FD_ERROR : 0);
+                printf("select cnt_nc[%d]\n", cnt_nc);
+                printf("fd_flags[%d]\n", fd_flags);
             }
 #if MG_LWIP
             /* With LWIP socket emulation layer, we don't get write events for UDP */
@@ -3724,7 +3760,9 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
 }
 
 #if MG_ENABLE_BROADCAST
+/*sock[0] 作为客户端的sock, sock[1]作为服务端的sock*/
 int mg_socketpair(sock_t sp[2], int sock_type) {
+
     union socket_address sa;
     sock_t sock;
     socklen_t len = sizeof(sa.sin);
@@ -3736,7 +3774,7 @@ int mg_socketpair(sock_t sp[2], int sock_type) {
     sa.sin.sin_family = AF_INET;
     sa.sin.sin_port = htons(0);
     sa.sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
-
+//    sa.sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* 127.0.0.1 */
 
     if ((sock = socket(AF_INET, sock_type, 0)) == INVALID_SOCKET) {
     } else if (bind(sock, &sa.sa, len) != 0) {
@@ -3764,10 +3802,16 @@ int mg_socketpair(sock_t sp[2], int sock_type) {
         sock = sp[0] = sp[1] = INVALID_SOCKET;
     }
 
+    printf("sp[0]=[%d], sp[1]=[%d], sock=[%d]\n", sp[0], sp[1], sock);
     return ret;
 }
 #endif /* MG_ENABLE_BROADCAST */
-
+/* 获得sock对应的ip地址
+ *
+ * remote==1:获取远端的ip地址
+ * remote==0:获取本地的ip地址
+ *
+ * */
 static void mg_sock_get_addr(sock_t sock, int remote,
                              union socket_address *sa) {
     socklen_t slen = sizeof(*sa);
@@ -10716,6 +10760,7 @@ static int mg_get_ip_address_of_nameserver(char *name, size_t name_len) {
     return ret;
 }
 
+/*从/etc/hosts 文件中进行域名解析*/
 int mg_resolve_from_hosts_file(const char *name, union socket_address *usa) {
 #if MG_ENABLE_FILESYSTEM
     /* TODO(mkm) cache /etc/hosts */

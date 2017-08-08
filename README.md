@@ -35,7 +35,7 @@
         mg_mgr_init(&mgr, NULL);
         
     2.创建一个连接.例如对于服务器应用而言,创建监听连接
-         struct mg_connection *c = mg_bind(&mgr, "80", ev_handler_function);
+         struct mg_connection *c = mg_bind(&mgr, "80", ev_handler_function);  //nc->flag 包含有MG_F_LISTENING
          mg_set_protocol_http_websocket(c);
          
     3.调用mg_mgr_poll()函数进行事件的循环检测
@@ -45,11 +45,17 @@
          
      mg_mgr_poll iterates over all sockets, accepts new connections, sends and receives data,
       closes connections and calls event handler functions for the respective events.
-        
-
-        
+          
     
 ```
+- mongoose 数据约定
+
+``` c
+    
+    #define MG_UDP_RECV_BUFFER_SIZE 1500   (mongoose udp 接受多大数据只能是1500字节)
+    
+```
+
  [参考资料](http://blog.h5min.cn/weixin_36381867/article/details/61618326)
  
  ## 事件及事件处理函数 
@@ -97,7 +103,7 @@
 
  ``` c
  
-    每个连接都有自己的标记位，比如当创建一个UDP连接时，Mongoose 将为这个连接的标记为设置为MG_F_UDP。
+    每个连接都有自己的标记位，比如当创建一个UDP连接时，Mongoose 将为这个连接的标记为设置为MG_F_UDP(默认是tcp协议)
     
     以下标记为用户设定： 
     - MG_F_SEND_AND_CLOSE：告诉Mongoose 数据已经全部存放到了发送缓冲区，当Mongoose 将数据发送完毕时，主动关闭连接。 
@@ -221,7 +227,8 @@
     int mg_socketpair(sock_t[2], int sock_type);
     
     描述:
-        Creates a socket pair.
+        Creates a socket pair. 将sock[0] 初始化为本地客户端的sock(127.0.0.1), 
+        sock[1]作为本地服务端的sock
         
     参数:
         sock_type :SOCK_STREAM 适用于TCP
@@ -271,5 +278,50 @@
         
     返回值:
         与服务器建立的连接.
+    
+```
+
+- mg_sock_addr_to_str() 将socket's address 转化为 字符串
+
+``` c
+
+    void mg_sock_addr_to_str(const union socket_address *sa, char *buf, size_t len,
+                         int flags)
+                                     
+    描述:
+        将socket's address 转化为 字符串
+        
+    参数:
+        sa: 要转化的源 sock地址
+        buf:字符串的起始地址
+        len:字符串大小
+        flag:可将各种flag进行 | 
+            1.MG_SOCK_STRINGIFY_IP :只转化为ip
+            2.MG_SOCK_STRINGIFY_PORT :只得到port
+            3.MG_SOCK_STRINGIFY_IP|MG_SOCK_STRINGIFY_PORT: 得到ip:port字符串
+        
+    
+```
+
+- mg_conn_addr_to_str(): Converts a connection's local or remote address into string.
+
+``` c
+
+   void mg_conn_addr_to_str(struct mg_connection *nc, char *buf, size_t len,
+                            int flags)
+                                     
+    描述:
+        将socket's address 转化为 字符串
+        
+    参数:
+        nc: 
+        buf:字符串的起始地址
+        len:字符串大小
+        flag:可将各种flag进行 | 
+            1.MG_SOCK_STRINGIFY_IP :只转化为ip
+            2.MG_SOCK_STRINGIFY_PORT :只得到port
+            3.MG_SOCK_STRINGIFY_IP|MG_SOCK_STRINGIFY_PORT: 得到ip:port字符串
+            4.MG_SOCK_STRINGIFY_REMOTE:代表远端的ip
+        
     
 ```

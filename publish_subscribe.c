@@ -36,7 +36,7 @@ static void client_handler(struct mg_connection *conn, int ev, void *p) {
 
     if (ev == MG_EV_CONNECT) {
 
-        printf("the conn->flags = %x\n", conn->flags);
+        printf("the conn->flags = %lx\n", conn->flags);
 
         if (conn->flags & MG_F_CLOSE_IMMEDIATELY) {
             printf("%s\n", "Error connecting to server!");
