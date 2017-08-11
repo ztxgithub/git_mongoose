@@ -3264,7 +3264,7 @@ struct mg_mgr {
  */
 struct mg_connection {
     struct mg_connection *next, *prev; /* mg_mgr::active_connections linkage */
-    struct mg_connection *listener;    /* Set only for accept()-ed connections */
+    struct mg_connection *listener;    /* Set only for accept()-ed connections 作为服务端有一个监听端口sock对应的nc*/
     struct mg_mgr *mgr;                /* Pointer to containing manager */
 
     sock_t sock; /* Socket to the remote peer  设置为非阻塞*/

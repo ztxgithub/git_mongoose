@@ -35,7 +35,7 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
     }
 }
 
-int main(void) {
+int g_main(void) {
     struct mg_mgr mgr;
     struct mg_connection *c;
 

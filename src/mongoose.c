@@ -1037,7 +1037,7 @@ void mbuf_free(struct mbuf *mbuf) WEAK;
 void mbuf_free(struct mbuf *mbuf) {
     if (mbuf->buf != NULL) {
         MBUF_FREE(mbuf->buf);
-        mbuf_init(mbuf, 0);
+        mbuf_init(mbuf, 0);  //mbuf->buf = NULL,mbuf->len = mbuf->size = 0
     }
 }
 
@@ -1066,12 +1066,15 @@ size_t mbuf_insert(struct mbuf *a, size_t off, const void *buf, size_t len) {
     char *p = NULL;
 
     assert(a != NULL);
-    assert(a->len <= a->size);
-    assert(off <= a->len);
+    assert(a->len <= a->size);  // struct mbuf的有效长度要小于等于申请的总空间
+    assert(off <= a->len);      // 偏移量要小于等于已存在的长度
 
     /* check overflow */
     if (~(size_t) 0 - (size_t) a->buf < len) return 0;
 
+    /* 如果已存在的长度加上要拷贝的数据长度 小于等于struct mbuf 申请的总空间
+     * 将重叠覆盖的数据 a->len - off 移到 后面去
+     * */
     if (a->len + len <= a->size) {
         memmove(a->buf + off + len, a->buf + off, a->len - off);
         if (buf != NULL) {
@@ -2000,7 +2003,8 @@ void mg_tun_destroy_client(struct mg_tun_client *client);
 #define intptr_t long
 #endif
 /*对nc进行操作
- *
+ *将新的struct mg_connection c 插入到mgr->active_connections的头部
+ * 做好扫尾工作,将 nc->prev,nc->next都赋值好
  * */
 MG_INTERNAL void mg_add_conn(struct mg_mgr *mgr, struct mg_connection *c) {
     DBG(("%p %p", mgr, c));
@@ -2013,13 +2017,15 @@ MG_INTERNAL void mg_add_conn(struct mg_mgr *mgr, struct mg_connection *c) {
         c->iface->vtable->add_conn(c);  //mg_socket_if_add_conn
     }
 }
-
+/*
+ * 将conn从conn->mgr->active_connections的链表中删除
+ * 如果conn是链表的第一个nc*/
 MG_INTERNAL void mg_remove_conn(struct mg_connection *conn) {
     if (conn->prev == NULL) conn->mgr->active_connections = conn->next;
     if (conn->prev) conn->prev->next = conn->next;
     if (conn->next) conn->next->prev = conn->prev;
     conn->prev = conn->next = NULL;
-    conn->iface->vtable->remove_conn(conn);
+    conn->iface->vtable->remove_conn(conn);  //mg_socket_if_remove_conn
 }
 
 /*mongoose 事件处理函数入口
@@ -2075,7 +2081,8 @@ MG_INTERNAL void mg_call(struct mg_connection *nc,
              (int) nc->recv_mbuf.len, (int) nc->send_mbuf.len));
     }
 }
-
+/*设置c->ev_timer_time 一定只能在一个线程里,同步进行
+ * 同时触发 MG_EV_TIMER 事件后,将c->ev_timer_time置为0已达到只触发一次*/
 void mg_if_timer(struct mg_connection *c, double now) {
     if (c->ev_timer_time > 0 && now >= c->ev_timer_time) {
         double old_value = c->ev_timer_time;
@@ -2090,6 +2097,7 @@ void mg_if_timer(struct mg_connection *c, double now) {
     }
 }
 
+/*对于每一个nc 都进行MG_EV_POLL*/
 void mg_if_poll(struct mg_connection *nc, time_t now) {
     if (!(nc->flags & MG_F_SSL) || (nc->flags & MG_F_SSL_HANDSHAKE_DONE)) {
         mg_call(nc, NULL, MG_EV_POLL, &now);
@@ -2114,7 +2122,7 @@ static void mg_destroy_conn(struct mg_connection *conn, int destroy_if) {
 void mg_close_conn(struct mg_connection *conn) {
     DBG(("%p %lu %d", conn, conn->flags, conn->sock));
     mg_remove_conn(conn);
-    conn->iface->vtable->destroy_conn(conn);
+    conn->iface->vtable->destroy_conn(conn);  //mg_socket_if_destroy_conn
     mg_call(conn, NULL, MG_EV_CLOSE, NULL);
     mg_destroy_conn(conn, 0 /* destroy_if */);
 }
@@ -2544,6 +2552,10 @@ void mg_if_recv_udp_cb(struct mg_connection *nc, void *buf, int len,
                        union socket_address *sa, size_t sa_len) {
     assert(nc->flags & MG_F_UDP);
     DBG(("%p %u", nc, (unsigned int) len));
+
+    /*当nc作为服务端的LISTENING(mg_bind 创建的nc)
+     * 收到了来自的请求
+     * */
     if (nc->flags & MG_F_LISTENING) {
         struct mg_connection *lc = nc;
         /*
@@ -3235,6 +3247,7 @@ void mg_socket_if_destroy_conn(struct mg_connection *nc) {
     nc->sock = INVALID_SOCKET;
 }
 
+/*第一次tcp客户端connect连接,在tcp服务端监听sock,accept到新建一个连接socke进行数据通信*/
 static int mg_accept_conn(struct mg_connection *lc) {
     struct mg_connection *nc;
     union socket_address sa;
@@ -3314,6 +3327,8 @@ static sock_t mg_open_listening_socket(union socket_address *sa, int type,
     return sock;
 }
 
+/*根据不同协议tcp/udp,将nc->send_mbuf里的数据send出去
+ * 并且删除nc->send_mbuf中成功发送的有效字节数*/
 static void mg_write_to_socket(struct mg_connection *nc) {
     struct mbuf *io = &nc->send_mbuf;
     int n = 0;
@@ -3373,6 +3388,7 @@ static void mg_write_to_socket(struct mg_connection *nc) {
     }
 }
 
+/*取avail 和 max 之间的最小值*/
 MG_INTERNAL size_t recv_avail_size(struct mg_connection *conn, size_t max) {
     size_t avail;
     if (conn->recv_mbuf_limit < conn->recv_mbuf.len) return 0;
@@ -3451,7 +3467,7 @@ static void mg_handle_udp_read(struct mg_connection *nc) {
     char *buf = NULL;
     union socket_address sa;
     socklen_t sa_len = sizeof(sa);
-    int n = mg_recvfrom(nc, &sa, &sa_len, &buf);
+    int n = mg_recvfrom(nc, &sa, &sa_len, &buf);  //buf 为动态申请的内存,考虑free
     DBG(("%p %d bytes from %s:%d", nc, n, inet_ntoa(nc->sa.sin.sin_addr),
          ntohs(nc->sa.sin.sin_port)));
     mg_if_recv_udp_cb(nc, buf, n, &sa, sa_len);
@@ -3488,6 +3504,9 @@ static void mg_ssl_begin(struct mg_connection *nc) {
 #define _MG_F_FD_CAN_WRITE 1 << 1
 #define _MG_F_FD_ERROR 1 << 2
 
+/*当nc->sock 有数据通信时,对不同的类型进行不同的操作
+ * 如 MG_EV_CONNECT, MG_EV_ACCEPT等
+ * */
 void mg_mgr_handle_conn(struct mg_connection *nc, int fd_flags, double now) {
     int worth_logging =
         fd_flags != 0 || (nc->flags & (MG_F_WANT_READ | MG_F_WANT_WRITE));
@@ -3497,6 +3516,7 @@ void mg_mgr_handle_conn(struct mg_connection *nc, int fd_flags, double now) {
              (int) nc->send_mbuf.len));
     }
 
+    //mongoose 客户端
     if (nc->flags & MG_F_CONNECTING) {
 
         printf("mg_mgr_handle_conn nc->flags include MG_F_CONNECTING\n");

@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
         // Create a socketpair and give one end to the thread that reads stdin
         mg_socketpair(fds, SOCK_STREAM);
 
-        mg_start_thread(stdin_thread, &fds[1]);
+//        mg_start_thread(stdin_thread, &fds[1]);
 
         // The other end of a pair goes inside the server
         ioconn = mg_add_sock(&mgr, fds[0], client_handler);

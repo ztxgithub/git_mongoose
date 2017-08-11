@@ -91,11 +91,13 @@
      MG_EV_RECV：接收到新的数据，void *ev_data is int *num_received_bytes. 是接收到的字节数，
                 接收到应该使用recv_mbuf来获取数据，但是需要由用户删除已接收的数据——比如mbuf_remove()。
                 使用mg_send()发送数据。Mongoose 使用realloc来扩展接收缓冲区，
-     MG_EV_SEND：Mongoose 已经将(int *)ev_data 的数据写到了远端并将数据从send_mbuf中删除。
-                mg_send()并不发送数据，只是将数据追加到缓冲区，正真的IO操作由mg_mgr_poll()完成。
-     MG_EV_POLL：该事件被发送给所有的已连接套接字，它可以被用来作任何持续性的事务，
+     MG_EV_SEND：Mongoose 已经将(int *)ev_data -->代表已经写到tcp/Udp发送缓冲区的数据字节数并将数据从send_mbuf中删除。
+                mg_send()并不发送数据，只是将数据追加到自定义的缓冲区，正真的IO操作由mg_mgr_poll()完成。
+                而mg_mgr_poll()函数会触发MG_EV_SEND事件,此时已经将数据写到tcp缓冲区中
+     MG_EV_POLL：该事件被发送给所有的已连接套接字，它可以被用来作任何持续性的事务，ev_data代表(time_t now)现在的时间戳
                  比如检查某个连接是否已经超时或者关闭、过期，或者用来发送心跳消息。
-     MG_EV_TIMER：当mg_set_timer() 被调用时被用来发送给指定的connection
+     MG_EV_TIMER：当mg_set_timer() 被调用时被用来发送给指定的connection , ev_data代表时间戳double now可以精确到毫秒,
+                  单位是秒
  
  ```
 
@@ -324,4 +326,29 @@
             4.MG_SOCK_STRINGIFY_REMOTE:代表远端的ip
         
     
+```
+- mbuf_free()函数
+
+``` c
+
+    void mbuf_free(struct mbuf *mbuf);
+                                     
+    描述:
+        将指向struct mbuf 结构内容进行复位, 释放mbuf->buf指针,并mbuf->buf = NULL,
+         mbuf->len = 0, mbuf->size = 0;
+        
+```
+
+- mg_close_conn()函数
+
+``` c
+
+   void mg_close_conn(struct mg_connection *conn);
+                                     
+    描述:
+        对conn进行一系列的释放操作
+        1.将conn从conn->mgr->active_connections的链表中删除
+        2.close 对应的 conn->sock 并 赋值为无效 conn->sock = -1
+        3. 调用mg_call(conn, NULL, MG_EV_CLOSE, NULL);触发MG_EV_CLOSE事件
+        4.再将conn里面其他数据结构清空,并释放
 ```
