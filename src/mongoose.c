@@ -2497,9 +2497,9 @@ void mg_if_accept_tcp_cb(struct mg_connection *nc, union socket_address *sa,
 void mg_send(struct mg_connection *nc, const void *buf, int len) {
     nc->last_io_time = (time_t) mg_time();
     if (nc->flags & MG_F_UDP) {
-        nc->iface->vtable->udp_send(nc, buf, len);
+        nc->iface->vtable->udp_send(nc, buf, len);  //mg_socket_if_udp_send
     } else {
-        nc->iface->vtable->tcp_send(nc, buf, len);
+        nc->iface->vtable->tcp_send(nc, buf, len);  //mg_socket_if_tcp_send
     }
 #if !defined(NO_LIBC) && MG_ENABLE_HEXDUMP
     if (nc->mgr && nc->mgr->hexdump_file != NULL) {
@@ -2614,6 +2614,11 @@ void mg_if_recv_udp_cb(struct mg_connection *nc, void *buf, int len,
  * Called from two places: `mg_connect_opt()` and from async resolver.
  * When called from the async resolver, it must trigger `MG_EV_CONNECT` event
  * with a failure flag to indicate connection failure.
+ * 将 nc->flags 附加 MG_F_CONNECTING
+ * 如果是udp协议,创建socket套接字,看是否设置 SO_BROADCAST 广播选项
+ * 如果是tcp协议,创建socket套接字,设置socket为非阻塞模式,调用connect函数
+ * 将初始化号的nc加入到nc->mgr的队首
+ *
  */
 MG_INTERNAL struct mg_connection *mg_do_connect(struct mg_connection *nc,
         int proto,
@@ -2623,9 +2628,9 @@ MG_INTERNAL struct mg_connection *mg_do_connect(struct mg_connection *nc,
 
     nc->flags |= MG_F_CONNECTING;
     if (proto == SOCK_DGRAM) {
-        nc->iface->vtable->connect_udp(nc);
+        nc->iface->vtable->connect_udp(nc);  // mg_socket_if_connect_udp
     } else {
-        nc->iface->vtable->connect_tcp(nc, sa);
+        nc->iface->vtable->connect_tcp(nc, sa);  // mg_socket_if_connect_tcp
     }
     mg_add_conn(nc->mgr, nc);
     return nc;
@@ -2695,6 +2700,11 @@ struct mg_connection *mg_connect(struct mg_mgr *mgr, const char *address,
     return mg_connect_opt(mgr, address, callback, opts);
 }
 
+/* 通过mg_create_connection()函数,来分配一个nc
+ * 解析要 服务器的ip
+ * 通过服务器ip知道用什么协议,对应的client也要一样的协议, nc->flags 进行 MG_F_UDP或者tcp标志
+ * 调用mg_do_connect()函数
+ * */
 struct mg_connection *mg_connect_opt(struct mg_mgr *mgr, const char *address,
                                      mg_event_handler_t callback,
                                      struct mg_connect_opts opts) {
@@ -2985,6 +2995,7 @@ void mg_if_get_conn_addr(struct mg_connection *nc, int remote,
     nc->iface->vtable->get_conn_addr(nc, remote, sa);  //mg_socket_if_get_conn_addr
 }
 
+/**/
 struct mg_connection *mg_add_sock_opt(struct mg_mgr *s, sock_t sock,
                                       mg_event_handler_t callback,
                                       struct mg_add_sock_opts opts) {
@@ -2996,6 +3007,10 @@ struct mg_connection *mg_add_sock_opt(struct mg_mgr *s, sock_t sock,
     return nc;
 }
 
+/*创建一个nc, 每一个nc都有对应的callback
+ * nc->sock = sock,将该sock设置为非阻塞模式
+ * 再将该nc,加入到mg_mgr->active_connections 队首
+ * */
 struct mg_connection *mg_add_sock(struct mg_mgr *s, sock_t sock,
                                   mg_event_handler_t callback) {
     struct mg_add_sock_opts opts;
@@ -3745,7 +3760,7 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
     for (nc = mgr->active_connections; nc != NULL; nc = tmp) {
         int fd_flags = 0;
         int cnt_nc = 0;
-        printf("cnt_nc[%d]\n", ++cnt_nc);
+//        printf("cnt_nc[%d]\n", ++cnt_nc);
         if (nc->sock != INVALID_SOCKET) {
             if (num_ev > 0) {
                 fd_flags = (FD_ISSET(nc->sock, &read_set) &&
@@ -3780,7 +3795,11 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
 }
 
 #if MG_ENABLE_BROADCAST
-/*sock[0] 作为客户端的sock, sock[1]作为服务端的sock*/
+/*如果 sock_type==SOCK_STREAM tcp协议的
+ *      sock[0] 作为客户端的sock, sock[1]作为服务端的accpet放回的new_sock
+ *
+ *
+ * sock[0] 作为客户端的sock, sock[1]作为服务端的sock*/
 int mg_socketpair(sock_t sp[2], int sock_type) {
 
     union socket_address sa;

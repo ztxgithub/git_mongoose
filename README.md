@@ -263,8 +263,20 @@
 - mg_add_sock()
 
 ``` c
-
+     struct mg_connection *mg_add_sock(struct mg_mgr *mgr, sock_t sock,
+                                        mg_event_handler_t handler)
     
+     描述:
+         创建一个nc,加入到mg_mgr->active_connections 队首.
+         其中每一个nc都有对应的callback,nc->sock = sock,将该sock设置为非阻塞模式
+         
+     参数:
+         mgr:mongoose manager 
+         sock: 赋值给nc->sock的值
+         handler : 赋值给 nc->handler
+     
+     返回值:
+         创建的nc
     
 ```
 
@@ -277,6 +289,13 @@
                                      
     描述:
         作为客户端调用mg_connect函数,与服务器建立连接.
+        通过mg_create_connection()函数,来分配一个nc
+          解析要连接的 服务器的ip
+          通过服务器ip知道用什么协议,对应的client也要一样的协议, nc->flags 进行 MG_F_UDP或者tcp标志
+          调用mg_do_connect()函数 ( 将 nc->flags 附加 MG_F_CONNECTING
+                                   如果是udp协议,创建socket套接字,看是否设置 SO_BROADCAST 广播选项
+                                   如果是tcp协议,创建socket套接字,设置socket为非阻塞模式,调用connect函数
+                                   将初始化号的nc加入到nc->mgr的队首)
         
     返回值:
         与服务器建立的连接.
@@ -351,4 +370,70 @@
         2.close 对应的 conn->sock 并 赋值为无效 conn->sock = -1
         3. 调用mg_call(conn, NULL, MG_EV_CLOSE, NULL);触发MG_EV_CLOSE事件
         4.再将conn里面其他数据结构清空,并释放
+```
+
+- mg_mgr_init()函数
+
+``` c
+
+    void mg_mgr_init(struct mg_mgr *mgr, void *user_data);
+                                     
+    描述:
+        将struct mg_mgr 进行初始化,将　user_data　赋值给　struct mg_mgr::user_data
+         使用默认的 struct mg_mgr_init_opts,加载默认函数指针
+        
+```
+
+- mg_bind()函数
+
+``` c
+
+   struct mg_connection *mg_bind(struct mg_mgr *srv, const char *address,
+                                 mg_event_handler_t event_handler);
+                                     
+    描述:
+        适用于服务端的绑定.
+        
+    参数:
+        srv:已经初始化过的 struct mg_mgr
+        address: 绑定的地址 
+            Address format: [PROTO://][HOST]:PORT
+                            PROTO:(udp|tcp)
+                            HOST:(192.168.0.2) 或则从/etc/hosts 中能解析的域名
+                            
+        event_handler: 自己定义的事件处理函数
+        
+```
+
+- mg_mgr_poll()函数
+
+``` c
+
+   time_t mg_mgr_poll(struct mg_mgr *m, int timeout_ms);
+                                     
+    描述:
+        该mg_mgr_poll函数要循环调用
+        
+    参数:                            
+        timeout_ms: 最多等待时间
+        
+    返回值:检测到select函数中文件有变化发生的时间戳(不包括事件处理时间) 或则 timeout_ms时间戳(什么事件都没发生的超时时间)
+        
+```
+
+- mg_send函数
+
+``` c
+
+   void mg_send(struct mg_connection *nc, const void *buf, int len);
+                                     
+    描述:
+        将自定义的buf的数据写入到nc->send_mbuf中
+        在mg_mgr_poll()函数中会将该nc对应的sock加入writefds文件描述集,将数据发送出去.
+        
+    参数:                            
+        nc
+        
+    
+        
 ```

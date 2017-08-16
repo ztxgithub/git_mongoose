@@ -16,11 +16,15 @@ static void server_handler(struct mg_connection *nc, int ev, void *p) {
         // Push received message to all ncections
         struct mbuf *io = &nc->recv_mbuf;
         struct mg_connection *c;
+        printf("server rev content:[%s]\n", io->buf);
 
-        for (c = mg_next(nc->mgr, NULL); c != NULL; c = mg_next(nc->mgr, c)) {
-            if (!(c->flags |= MG_F_USER_2)) continue;  // Skip non-client connections
-            mg_send(c, io->buf, io->len);
-        }
+//        for (c = mg_next(nc->mgr, NULL); c != NULL; c = mg_next(nc->mgr, c)) {
+//            if (!(c->flags |= MG_F_USER_2)) continue;  // Skip non-client connections
+//            mg_send(c, io->buf, io->len);
+//        }
+
+        mg_send(nc, io->buf, io->len);
+
         mbuf_remove(io, io->len);
     } else if (ev == MG_EV_ACCEPT) {
         char addr[32];
