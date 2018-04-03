@@ -432,8 +432,167 @@
         在mg_mgr_poll()函数中会将该nc对应的sock加入writefds文件描述集,将数据发送出去.
         
     参数:                            
-        nc
+        nc   
+```
+
+- mg_printf函数
+
+``` c
+
+  int mg_printf(struct mg_connection *, const char *fmt, ...);
+                                     
+    描述:
+        以类似printf格式写入内容,并发送到对端
+```
+
+
+## mongoose http
+
+### mongoose http 接口函数
+
+- mg_send_head
+
+``` c
+
+  void mg_send_head(struct mg_connection *n, int status_code,
+                    int64_t content_length, const char *extra_headers);
+                                     
+    描述:
+        向对端发送 Response包中状态行(第一行) 和 消息头
         
+    参数:                            
+         status_code : 状态码
+         content_length: 消息主体(body)的有效长度,其在消息头中(Content-Length: 90)
+         
+    注意:
+         Sends the response line and headers.
+          This function sends the response line with the `status_code`, and
+         * automatically
+         * sends one header: either "Content-Length" or "Transfer-Encoding".
+         * If `content_length` is negative, then "Transfer-Encoding: chunked" header
+         * is sent, otherwise, "Content-Length" header is sent.
+         *
+         * NOTE: If `Transfer-Encoding` is `chunked`, then message body must be sent
+         * using `mg_send_http_chunk()` or `mg_printf_http_chunk()` functions.
+         * Otherwise, `mg_send()` or `mg_printf()` must be used.
+         * Extra headers could be set through `extra_headers`. Note `extra_headers`
+         * must NOT be terminated by a new line
+```
+
+- mg_register_http_endpoint
+
+``` c
+
+    void mg_register_http_endpoint(struct mg_connection *nc, const char *uri_path,
+                                   mg_event_handler_t handler)
+                                     
+    描述:
+        对前端请求的某个特定的url进行回调函数绑定,如果回调被注册,它会被调用，而不是在mg_bind中提供的回调
+        
+    参数:                            
+         uri_path : 特定的url
+         handler:  回调函数
+         
+    注意:
+         * Registers a callback for a specified http endpoint
+         * Note: if callback is registered it is called instead of the
+         * callback provided in mg_bind
+         *
+         * Example code snippet:
+         *
+         * ```c
+         * static void handle_hello1(struct mg_connection *nc, int ev, void *ev_data) {
+         *   (void) ev; (void) ev_data;
+         *   mg_printf(nc, "HTTP/1.0 200 OK\r\n\r\n[I am Hello1]");
+         *  nc->flags |= MG_F_SEND_AND_CLOSE;
+         * }
+         *
+         * static void handle_hello1(struct mg_connection *nc, int ev, void *ev_data) {
+         *  (void) ev; (void) ev_data;
+         *   mg_printf(nc, "HTTP/1.0 200 OK\r\n\r\n[I am Hello2]");
+         *  nc->flags |= MG_F_SEND_AND_CLOSE;
+         * }
+         *
+         * void init() {
+         *   nc = mg_bind(&mgr, local_addr, cb1);
+         *   mg_register_http_endpoint(nc, "/hello1", handle_hello1);
+         *   mg_register_http_endpoint(nc, "/hello1/hello2", handle_hello2);
+         * }
+```
+
+### 浏览器上传文件到 web server
+
+``` c
+
+    https://github.com/cesanta/mongoose/blob/master/examples/big_upload/big_upload.c
     
+    1. 对http server 进行初始化
+       mg_mgr_init(&mgr, NULL);
+       c = mg_bind(&mgr, s_http_port, ev_handler);
+       
+    2.  s_http_server_opts.document_root = ".";  // Serve current directory
+        mg_register_http_endpoint(c, "/upload", handle_upload);
+      
+        // Set up HTTP server parameters
+        mg_set_protocol_http_websocket(c);
         
+    其中handle_upload回调函数为
+    static void handle_upload(struct mg_connection *nc, int ev, void *p) {
+    
+        struct file_writer_data *data = (struct file_writer_data *) nc->user_data;
+        struct mg_http_multipart_part *mp = (struct mg_http_multipart_part *) p;
+    
+        switch (ev) {
+            case MG_EV_HTTP_PART_BEGIN: {
+                if (data == NULL) {
+                    data = calloc(1, sizeof(struct file_writer_data));
+                    data->fp = tmpfile();
+                    data->bytes_written = 0;
+    
+                    if (data->fp == NULL) {
+                        mg_printf(nc, "%s",
+                                  "HTTP/1.1 500 Failed to open a file\r\n"
+                                          "Content-Length: 0\r\n\r\n");
+                        nc->flags |= MG_F_SEND_AND_CLOSE;
+                        free(data);
+                        return;
+                    }
+                    nc->user_data = (void *) data;
+                }
+                printf("MG_EV_HTTP_PART_BEGIN\n");
+                break;
+            }
+            case MG_EV_HTTP_PART_DATA: {
+                if (fwrite(mp->data.p, 1, mp->data.len, data->fp) != mp->data.len) {
+                    mg_printf(nc, "%s",
+                              "HTTP/1.1 500 Failed to write to a file\r\n"
+                                      "Content-Length: 0\r\n\r\n");
+                    nc->flags |= MG_F_SEND_AND_CLOSE;
+                    return;
+                }
+                data->bytes_written += mp->data.len;
+                printf("MG_EV_HTTP_PART_DATA\n");
+                break;
+            }
+            case MG_EV_HTTP_PART_END: {
+                mg_printf(nc,
+                          "HTTP/1.1 200 OK\r\n"
+                                  "Content-Type: text/plain\r\n"
+                                  "Connection: close\r\n\r\n"
+                                  "Written %ld of POST data to a temp file\n\n",
+                          (long) ftell(data->fp));
+                nc->flags |= MG_F_SEND_AND_CLOSE;
+                fclose(data->fp);
+                free(data);
+                nc->user_data = NULL;
+                printf("MG_EV_HTTP_PART_END\n");
+                break;
+            }
+        }
+    }
+    
+    注意在浏览器上传文件时,先后接受到
+        一次MG_EV_HTTP_PART_BEGIN命令字,
+        多次MG_EV_HTTP_PART_DATA  (跟文件大小有关,接受到一次MG_EV_HTTP_PART_DATA回调的数据量有限)
+        一次MG_EV_HTTP_PART_END (作为文件上传接受标志)
 ```

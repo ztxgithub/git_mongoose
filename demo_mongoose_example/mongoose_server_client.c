@@ -65,7 +65,7 @@ static void client_handler(struct mg_connection *conn, int ev, void *p) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int g_main(int argc, char *argv[]) {
     struct mg_mgr mgr;
 
     if (argc != 3) {

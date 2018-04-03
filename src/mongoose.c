@@ -3769,8 +3769,8 @@ time_t mg_socket_if_poll(struct mg_iface *iface, int timeout_ms) {
                             : 0) |
                            (FD_ISSET(nc->sock, &write_set) ? _MG_F_FD_CAN_WRITE : 0) |
                            (FD_ISSET(nc->sock, &err_set) ? _MG_F_FD_ERROR : 0);
-                printf("select cnt_nc[%d]\n", cnt_nc);
-                printf("fd_flags[%d]\n", fd_flags);
+//                printf("select cnt_nc[%d]\n", cnt_nc);
+//                printf("fd_flags[%d]\n", fd_flags);
             }
 #if MG_LWIP
             /* With LWIP socket emulation layer, we don't get write events for UDP */

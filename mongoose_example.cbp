@@ -44,8 +44,8 @@
 				<Option type="1"/>
 				<Option compiler="gcc"/>
 				<Compiler>
-					<Add directory="/home/jame/share_user/git_mongoose/./easylogger/include"/>
-					<Add directory="/home/jame/share_user/git_mongoose/./include"/>
+					<Add option="-DMG_ENABLE_HTTP_STREAMING_MULTIPART"/>
+					<Add directory="/home/jame/share_user/git_mongoose/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
 					<Add directory="/usr/local/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
@@ -69,8 +69,8 @@
 				<Option type="1"/>
 				<Option compiler="gcc"/>
 				<Compiler>
-					<Add directory="/home/jame/share_user/git_mongoose/./easylogger/include"/>
-					<Add directory="/home/jame/share_user/git_mongoose/./include"/>
+					<Add option="-DMG_ENABLE_HTTP_STREAMING_MULTIPART"/>
+					<Add directory="/home/jame/share_user/git_mongoose/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include"/>
 					<Add directory="/usr/local/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-linux-gnu/5/include-fixed"/>
@@ -88,25 +88,10 @@
 				</MakeCommands>
 			</Target>
 		</Build>
-		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog.c">
-			<Option target="mongoose_example"/>
-		</Unit>
-		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog_port.c">
-			<Option target="mongoose_example"/>
-		</Unit>
-		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/elog_utils.c">
-			<Option target="mongoose_example"/>
-		</Unit>
-		<Unit filename="/home/jame/share_user/git_mongoose/easylogger/log.cpp">
-			<Option target="mongoose_example"/>
-		</Unit>
-		<Unit filename="/home/jame/share_user/git_mongoose/main.cpp">
+		<Unit filename="/home/jame/share_user/git_mongoose/main.c">
 			<Option target="mongoose_example"/>
 		</Unit>
 		<Unit filename="/home/jame/share_user/git_mongoose/src/mongoose.c">
-			<Option target="mongoose_example"/>
-		</Unit>
-		<Unit filename="/home/jame/share_user/git_mongoose/src/mongoose_timer.cpp">
 			<Option target="mongoose_example"/>
 		</Unit>
 		<Unit filename="/home/jame/share_user/git_mongoose/CMakeLists.txt">
