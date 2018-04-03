@@ -1,0 +1,14 @@
+cmake-build-*/
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
+Makefile*
+.idea/
+git_pthread
+git_pthread.cbp
+mongoose_example.cbp
+mongoose_example
+pthread
+pthread.cbp
+publish_subscribe
+publish_subscribe.c
