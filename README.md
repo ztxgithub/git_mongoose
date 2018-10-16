@@ -431,8 +431,15 @@
         将自定义的buf的数据写入到nc->send_mbuf中
         在mg_mgr_poll()函数中会将该nc对应的sock加入writefds文件描述集,将数据发送出去.
         
+        
     参数:                            
         nc   
+        
+    注意:
+        mg_send 可能最长通过系统 TCP 协议发送出去要经过超时时间(timeout_ms),
+        mg_mgr_poll(struct mg_mgr *m, int timeout_ms); 因为 mg_mgr_poll 中通过 select 系统调用进行 IO 消息事件的处理
+        而加入到 select 的 write 集合的条件是自定义的发送缓冲区内有数据，在这之前是没有数据所以这个时候 select 没有对该
+        连接进行监控，要等到超时过后，再进行判断加入
 ```
 
 - mg_printf函数
@@ -518,6 +525,43 @@
          *   mg_register_http_endpoint(nc, "/hello1", handle_hello1);
          *   mg_register_http_endpoint(nc, "/hello1/hello2", handle_hello2);
          * }
+```
+
+- mg_http_serve_file
+
+
+``` c
+
+    void mg_http_serve_file(struct mg_connection *nc, struct http_message *hm,
+                            const char *path, const struct mg_str mime_type,
+                            const struct mg_str extra_headers)
+                                     
+    描述:
+        提供浏览器进行下载文件接口
+        
+    参数:                            
+         path : 下载的文件名
+         mime_type:  设置对应 返回报文头(response headers) Content-Type: application/x-sqlite3
+         
+    注意:
+         * Serves a specific file with a given MIME type and optional extra headers.
+         *
+         * Example code snippet:
+         *
+         * ```c
+         * static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
+         *   switch (ev) {
+         *     case MG_EV_HTTP_REQUEST: {
+         *       struct http_message *hm = (struct http_message *) ev_data;
+         *       mg_http_serve_file(nc, hm, "file.txt",
+         *                          mg_mk_str("text/plain"), mg_mk_str(""));
+         *       break;
+         *     }
+         *     ...
+         *   }
+         * }
+         * ```
+
 ```
 
 ### 浏览器上传文件到 web server
